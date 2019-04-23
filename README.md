@@ -52,4 +52,4 @@ I ended up not using GCP BigQuery, I learned how to use it if I need to.
 
 ![unique1 and stringu1][selectscreenshot]
 
-[selectscreenshot]: https://github.com/jcantrell/Wisconsin-data/screenshot.png
+[selectscreenshot]: https://github.com/jcantrell/Wisconsin-data/master/screenshot.png
