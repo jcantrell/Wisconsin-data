@@ -1,5 +1,8 @@
 # Wisonsin data generation
+This project is hosted at https://github.com/jcantrell/Wisconsin-data
+and serves as part 1 of the ter project for PSU CS487
 
+# Description
 This script generates data according to the Wisconsin benchmark
 specification, as described in "The Wisconsin Benchmark: Past, Present, and
 Future" by David J. DeWitt. In order to follow the benchmark specification
