@@ -1,3 +1,4 @@
+/* mysql */
 create database dbs;
 use dbs;
 create table tenktup1
