@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo mysql -p
+sudo mysql -D dbs -p
