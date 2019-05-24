@@ -303,11 +303,20 @@ from tenktup1;
   trim "$queryStr"
 }
 
+query20maketemp() {
+queryStr="
+create table temp20
+(
+  val integer NOT NULL
+);
+"
+  trim "$queryStr"
+}
 query20() {
 # query 20 & query 23
 queryStr="
 insert into $1
-select min (tenktup1.unique2) from tenktup1;
+select min(tenktup1.unique2) from tenktup1;
 "
   trim "$queryStr"
 }
@@ -316,7 +325,7 @@ query21() {
 # query 21 & query 24
 queryStr="
 insert into $1
-select min (tenktup1.unique3) from tenktup1
+select min(tenktup1.unique3) from tenktup1
 group by tenktup1.onePercent;
 "
   trim "$queryStr"
@@ -434,6 +443,9 @@ case "$1" in
     ;;
   20)
     query20 temp20
+    ;;
+  20temp)
+    query20maketemp "$2"
     ;;
   21)
     query21 temp21
