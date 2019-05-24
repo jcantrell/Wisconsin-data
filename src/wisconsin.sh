@@ -125,7 +125,7 @@ create table $1
 "
   trim "$queryStr"
 }
-loadTable() {
+loadTableMysql() {
 queryStr="
 LOAD DATA LOCAL INFILE '$2'
 INTO TABLE $1
@@ -303,9 +303,9 @@ from tenktup1;
   trim "$queryStr"
 }
 
-query20maketemp() {
+createTableSingleInt() {
 queryStr="
-create table temp20
+create table $1
 (
   val integer NOT NULL
 );
@@ -335,7 +335,7 @@ query22() {
 # query 22 & query 25
 queryStr="
 insert into $1
-select sum (tenktup1.unique3) from tenktup1
+select sum(tenktup1.unique3) from tenktup1
 group by tenktup1.onePercent;
 "
   trim "$queryStr"
@@ -343,8 +343,16 @@ group by tenktup1.onePercent;
 
 query26() {
 # query 26 & query 29
+#queryStr="
+#insert into tenktup1 values(10001,74,0, 2,0,10,50,688,
+#1950,4950,9950,1,100,
+#'MxxxxxxxxxxxxxxxxxxxxxxxxxGxxxxxxxxxxxxxxxxxxxxxxxxC',
+#'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
+#'OxxxxxxxxxxxxxxxxxxxxxxxxxOxxxxxxxxxxxxxxxxxxxxxxxxO');
+#"
+#  trim "$queryStr"
 queryStr="
-insert into tenktup1 values(10001,74,0, 2,0,10,50,688,
+insert into tenktup1 values(74,10001,0, 2,0,10,50,688,
 1950,4950,9950,1,100,
 'MxxxxxxxxxxxxxxxxxxxxxxxxxGxxxxxxxxxxxxxxxxxxxxxxxxC',
 'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
@@ -355,8 +363,11 @@ insert into tenktup1 values(10001,74,0, 2,0,10,50,688,
 
 query27() {
 # query 27 & query 30
+#queryStr="
+#delete from tenktup1 where unique1=10001;
+#"
 queryStr="
-delete from tenktup1 where unique1=10001;
+delete from tenktup1 where unique2=10001;
 "
   trim "$queryStr"
 }
@@ -375,9 +386,6 @@ query32() {
 queryStr="
 update tenktup1
 set unique1 = 10001 where unique1 = 1491;
-insert into tmp
-select * from tenktup1
-where unique1 between 792 and 1791;
 "
   trim "$queryStr"
 }
@@ -445,13 +453,13 @@ case "$1" in
     query20 temp20
     ;;
   20temp)
-    query20maketemp "$2"
+    createTableSingleInt "$2"
     ;;
   21)
     query21 temp21
     ;;
   22)
-    query22
+    query22 temp22
     ;;
   26)
     query26
@@ -477,8 +485,8 @@ case "$1" in
   triple)
     createTriple "$2"
     ;;
-  load)
-    loadTable "$2" "$3"
+  loadMysql)
+    loadTableMysql "$2" "$3"
     ;;
   *)
     echo "No such query"

@@ -81,7 +81,7 @@ func main() {
   }
   countIn, _ := strconv.Atoi(os.Args[1])
   var tupCount int64 = int64(countIn)
-  if      tupCount <= 1000 {generate_relation(tupCount,279,1009)
+  if        tupCount <= 1000 {generate_relation(tupCount,279,1009)
   } else if tupCount <= 10000 {generate_relation(tupCount,2969,10007)
   } else if tupCount <= 100000 {generate_relation(tupCount,21395,100003)
   } else if tupCount <= 1000000 {generate_relation(tupCount,2107,10000)
