@@ -146,6 +146,12 @@ temp2
 EOF
 }
 
+selectQuery() { # from-table, attribute, lowerValue, upperValue
+queryStr="
+insert into 
+"
+}
+
 query1() { # query 1: table, lowerValue
 queryStr="
 insert into $2
