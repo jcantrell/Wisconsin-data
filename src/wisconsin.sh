@@ -1,4 +1,10 @@
 #!/bin/bash
+TIMEFORMAT=%R
+
+executeQuery() { # queryStr
+  echo "executing: $1"
+  echo "$1" | ./mysql_connect.sh
+}
 
 trim() {
   # Trim empty first and last lines
@@ -146,68 +152,188 @@ temp2
 EOF
 }
 
-selectQuery() { # from-table, attribute, lowerValue, upperValue
-queryStr="
-insert into 
-"
-}
-
-query1() { # query 1: table, lowerValue
+selectQuery() { # from-table, to-table, attribute, lowerValue, upperValue
 queryStr="
 insert into $2
 select * from $1
-where unique2 between $3 and $(($3+99));
+where $3 between $4 and $5;
 "
   trim "$queryStr"
 }
 
-query2() { # query 2: source, destination, lowerValue
-queryStr="
-insert into $2
-select * from $1
-where unique2 between $3 and $(($3+999));
-"
-  trim "$queryStr"
+# generate a (uniformly distributed) random number 
+# between low and high, inclusive
+randomInclusive() {
+  low="$1"
+  high="$2"
+
+  range=32768 # range of numbers given by $RANDOM
+  r=-1
+
+  while (( $r < $low || $r > $high )); do 
+    r=0
+    iterRange=$(($high - $low + 1))
+    while (($iterRange > 0)); do
+      r=$(($range*$r+$RANDOM))
+      iterRange=$(($iterRange - $range))
+    done
+  done
+  echo "$r"
+}
+
+query1() { # query 1: source1, source2, numTuples
+  source1="$1"
+  source2="$2"
+  dst="temp1"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "temp1")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-99)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/1
+    executeQuery "drop table temp1;"
+  done
+}
+
+query2() { # query 2: source1, source2, numTuples
+  source1="$1"
+  source2="$2"
+  dst="temp2"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "temp2")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-999)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/2
+    executeQuery "drop table temp2;"
+  done
+  #selectQuery $1 $2 "unique1" $3 $(($3+999)) 
+}
+
+query3() { # query 3: source1, source2, numTuples
+  source1="$1"
+  source2="$2"
+  dst="temp3"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-99)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+99))")" ) 2>>../data/times/3
+    executeQuery "drop table $dst;"
+  done
+  #selectQuery $1 $2 "unique2" $3 $(($3+99)) 
+}
+
+query4() { # 
+  source1="$1"
+  source2="$2"
+  dst="temp4"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-999)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+999))")" ) 2>>../data/times/4
+    executeQuery "drop table $dst;"
+  done
+  #selectQuery $1 $2 "unique2" $3 $(($3+999)) 
 }
 
 query5() { # query 5: source, dest, lowerValue
-queryStr="
-insert into $2
-select * from $1
-where unique1 between $3 and $(($3+99));
-"
-  trim "$queryStr"
+  source1="$1"
+  source2="$2"
+  dst="temp5"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-99)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/5
+    executeQuery "drop table $dst;"
+  done
+  #selectQuery $1 $2 "unique1" $3 $(($3+99))
 }
 query6() { # query 6: source, dest, lowerValue
-queryStr="
-insert into $2
-select * from $1
-where unique1 between $3 and $(($3+999));
-"
-  trim "$queryStr"
+  source1="$1"
+  source2="$2"
+  dst="temp6"
+  src="$source1"
+  numTuples="$3"
+  for i in {1..10}; do
+    executeQuery "$(createTable "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $(($numTuples-999)))
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/6
+    executeQuery "drop table $dst;"
+  done
+  #selectQuery $1 $2 "unique1" $3 $(($3+999))
 }
-query7() { # query 7: source
-queryStr="
-select * from $1
-where unique2 = 2001;
-"
-  trim "$queryStr"
+query7() { # query 7: source1, source2, numTuples
+  source1="$1"
+  source2="$2"
+  src="$source1"
+  numTuples="$3"
+#queryStr="
+#select * from $1
+#where unique2 = 2001;
+#"
+  for i in {1..10}; do
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+    qStr="select * from $src where unique2 = $rand;"
+    ( time executeQuery "$qStr" ) 2>>../data/times/7
+  done
+  #trim "$queryStr"
 }
-query8() { # query 8: source, lowerValue
-queryStr="
-select * from $1
-where unique2 between $2 and $(($2+99));
-"
-  trim "$queryStr"
+query8() { # query 8: source1, source2, numTuples
+  source1="$1"
+  source2="$2"
+  src="$source1"
+  numTuples="$3"
+#queryStr="
+#select * from $1
+#where unique2 between $2 and $(($2+99));
+#"
+  for i in {1..10}; do
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+    qStr="select * from $src where unique2 between $rand and $(($rand+99));"
+    ( time executeQuery "$qStr" ) 2>>../data/times/8
+  done
+  #trim "$queryStr"
 }
 query9() { # query 9: dest
-queryStr="
-insert into $1
-select * from tenktup1, tenktup2
-where (tenktup1.unique2 = tenktup2.unique2)
-and (tenktup2.unique2 < 1000); 
+  source1="$1"
+  source2="$2"
+  numTuples="$3"
+  dst="temp9"
+  attr="unique1"
+#queryStr="
+#insert into $1
+#select * from tenktup1, tenktup2
+#where (tenktup1.unique2 = tenktup2.unique2)
+#and (tenktup2.unique2 < 1000); 
+#"
+#  trim "$queryStr"
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+qStr="
+insert into $dst 
+select * from $source1, $source2 
+where ($source1.$attr = $source2.$attr) 
+and ( $src.$attr < 1000);
 "
-  trim "$queryStr"
+    ( time executeQuery "$qStr" ) 2>>../data/times/9
+    executeQuery "drop table $dst;"
+  done
 }
 bprime() { 
 queryStr="
@@ -218,22 +344,150 @@ where tenktup2.unique2 < 1000;
   trim "$queryStr"
 }
 query10() { 
-queryStr="
-insert into $1
-select * from tenktup1, bprime
-where (tenktup1.unique2 = bprime.unique2);
+  source1="$1"
+  source2="$2"
+  numTuples="$3"
+  dst="temp10"
+  attr="unique1"
+#queryStr="
+#insert into $1
+#select * from tenktup1, bprime
+#where (tenktup1.unique2 = bprime.unique2);
+#"
+#  trim "$queryStr"
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+qStr="
+insert into $dst
+select * from $src, bprime 
+where ($src.$attr = bprime.$attr) 
+and ( $src.$attr < 1000);
 "
-  trim "$queryStr"
+    trim "$queryStr"
+    ( time executeQuery "$qStr" ) 2>>../data/times/10
+    executeQuery "drop table $dst;"
+  done
 }
 query11() {
-queryStr="
-insert into $1
-select * from onektup, tenktup1, tenktup2
-where (onektup.unique2 = tenktup1.unique2)
-and (tenktup1.unique2 = tenktup2.unique2)
-and (tenktup1.unique2 < 1000);
+  source1="$1"
+  source2="$2"
+  source3="$3"
+  numTuples="$4"
+  dst="temp11"
+  attr="unique1"
+  
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+    #qStr="insert into $dst select * from $src, bprime where ($src.unique2 = bprime.unique2) and ( $src.unique2 < 1000);"
+qStr="
+insert into $dst
+select * from $source3, $source1, $source2
+where ($source3.$attr = $source1.$attr)
+and ($source1.$attr = $source2.$attr)
+and ($source1.$attr < 1000);
 "
-  trim "$queryStr"
+#queryStr="
+#insert into $1
+#select * from onektup, tenktup1, tenktup2
+#where (onektup.unique2 = tenktup1.unique2)
+#and (tenktup1.unique2 = tenktup2.unique2)
+#and (tenktup1.unique2 < 1000);
+#"
+    trim "$queryStr"
+
+    ( time executeQuery "$qStr" ) 2>>../data/times/11
+    executeQuery "drop table $dst;"
+  done
+}
+query12() { # query 9: dest
+  source1="$1"
+  source2="$2"
+  numTuples="$3"
+  dst="temp12"
+  attr="unique2"
+#queryStr="
+#insert into $1
+#select * from tenktup1, tenktup2
+#where (tenktup1.unique2 = tenktup2.unique2)
+#and (tenktup2.unique2 < 1000); 
+#"
+#  trim "$queryStr"
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+qStr="
+insert into $dst 
+select * from $source1, $source2 
+where ($source1.$attr = $source2.$attr) 
+and ( $src.$attr < 1000);
+"
+    ( time executeQuery "$qStr" ) 2>>../data/times/9
+    executeQuery "drop table $dst;"
+  done
+}
+query13() { 
+  source1="$1"
+  source2="$2"
+  numTuples="$3"
+  dst="temp13"
+  attr="unique2"
+#queryStr="
+#insert into $1
+#select * from tenktup1, bprime
+#where (tenktup1.unique2 = bprime.unique2);
+#"
+#  trim "$queryStr"
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+qStr="
+insert into $dst
+select * from $src, bprime 
+where ($src.$attr = bprime.$attr);
+"
+    trim "$queryStr"
+    ( time executeQuery "$qStr" ) 2>>../data/times/10
+    executeQuery "drop table $dst;"
+  done
+}
+query14() {
+  source1="$1"
+  source2="$2"
+  source3="$3"
+  numTuples="$4"
+  dst="temp14"
+  attr="unique2"
+  
+  for i in {1..4}; do
+    executeQuery "$(createDouble "$dst")"
+    [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
+    rand=$(randomInclusive 1 $numTuples)
+    #qStr="insert into $dst select * from $src, bprime where ($src.unique2 = bprime.unique2) and ( $src.unique2 < 1000);"
+qStr="
+insert into $dst
+select * from $source3, $src
+where ($source3.$attr = $src.$attr)
+and ($src.$attr = $source2.$attr)
+and ($src.$attr < 1000);
+"
+#queryStr="
+#insert into $1
+#select * from onektup, tenktup1, tenktup2
+#where (onektup.unique2 = tenktup1.unique2)
+#and (tenktup1.unique2 = tenktup2.unique2)
+#and (tenktup1.unique2 < 1000);
+#"
+    trim "$queryStr"
+
+    ( time executeQuery "$qStr" ) 2>>../data/times/11
+    executeQuery "drop table $dst;"
+  done
 }
 query15() {
 queryStr="
@@ -396,36 +650,48 @@ set unique1 = 10001 where unique1 = 1491;
   trim "$queryStr"
 }
 
+longq() {
+  executeQuery "$(createTable "temp2")"
+  time executeQuery "$(query2 tenktup1 temp2 98)"
+  executeQuery "drop table temp2;"
+}
+
 case "$1" in
   1)
-    query1 tenktup1 temp1 17
+    query1 tenktup1 tenktup2 10000
     ;;
   2)
-    query2 tenktup1 temp2 98
+    query2 tenktup1 tenktup2 10000
+    ;;
+  3)
+    query3 tenktup1 tenktup2 10000
+    ;;
+  4)
+    query4 tenktup1 tenktup2 10000
     ;;
   5) 
-    query5 tenktup1 temp5 100
+    query5 tenktup1 tenktup2 10000
     ;;
   6)
-    query6 tenktup1 temp6 792
+    query6 tenktup1 tenktup2 10000
     ;;
   7)
-    query7 tenktup1
+    query7 tenktup1 tenktup2 10000
     ;;
   8)
-    query8 tenktup1 0
+    query8 tenktup1 tenktup2 10000
     ;;
   9)
-    query9 temp9
+    query9 tenktup1 tenktup2 10000
     ;;
   bprime)
     bprime
     ;;
   10)
-    query10 temp10
+    query10 tenktup1 tenktup2 10000
     ;;
   11)
-    query11 temp11
+    query11 tenktup1 tenktup2 onektup 10000
     ;;
   15)
     query15 temp15
@@ -493,6 +759,9 @@ case "$1" in
     ;;
   loadMysql)
     loadTableMysql "$2" "$3"
+    ;;
+  longq)
+    longq
     ;;
   *)
     echo "No such query"
