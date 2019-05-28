@@ -1,9 +1,20 @@
 #!/bin/bash
 TIMEFORMAT=%R
 
+generateData() {
+  go run Wisconsin.go 1000      > ../data/onektuples.csv
+  go run Wisconsin.go 10000     > ../data/tenktuples.csv
+  go run Wisconsin.go 100000    > ../data/hundredktuples.csv
+  go run Wisconsin.go 1000000   > ../data/onemtuples.csv
+  go run Wisconsin.go 10000000  > ../data/tenmtuples.csv
+  go run Wisconsin.go 100000000 > ../data/hundredmtuples.csv 
+}
+
+
+
 executeQuery() { # queryStr
   echo "executing: $1"
-  #echo "$1" | ./mysql_connect.sh
+  echo "$1" | ./mysql_connect.sh
 }
 
 trim() {
@@ -131,7 +142,7 @@ create table $1
 "
   trim "$queryStr"
 }
-loadTableMysql() {
+loadTableMysql() { # tableName, fileName
 queryStr="
 LOAD DATA LOCAL INFILE '$2'
 INTO TABLE $1
@@ -145,10 +156,15 @@ IGNORE 0 ROWS;
 
 clean() {
   while read table; do
-    echo "drop table if exists $table;"
+    #echo "drop table if exists $table;"
+    executeQuery "drop table if exists $table;"
   done <<-EOF
 temp1
 temp2
+tenktup1
+tenktup2
+bprime
+onektup
 EOF
 }
 
@@ -191,7 +207,7 @@ query1() { # query 1: source1, source2, numTuples
     executeQuery "$(createTable "temp1")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-99)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/1
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/"$numTuples"/1
     executeQuery "drop table temp1;"
   done
 }
@@ -206,7 +222,7 @@ query2() { # query 2: source1, source2, numTuples
     executeQuery "$(createTable "temp2")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-999)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/2
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/"$numTuples"/2
     executeQuery "drop table temp2;"
   done
   #selectQuery $1 $2 "unique1" $3 $(($3+999)) 
@@ -222,7 +238,7 @@ query3() { # query 3: source1, source2, numTuples
     executeQuery "$(createTable "$dst")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-99)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+99))")" ) 2>>../data/times/3
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+99))")" ) 2>>../data/times/"$numTuples"/3
     executeQuery "drop table $dst;"
   done
   #selectQuery $1 $2 "unique2" $3 $(($3+99)) 
@@ -238,7 +254,7 @@ query4() { #
     executeQuery "$(createTable "$dst")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-999)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+999))")" ) 2>>../data/times/4
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique2" "$rand" "$(($rand+999))")" ) 2>>../data/times/"$numTuples"/4
     executeQuery "drop table $dst;"
   done
   #selectQuery $1 $2 "unique2" $3 $(($3+999)) 
@@ -254,7 +270,7 @@ query5() { # query 5: source, dest, lowerValue
     executeQuery "$(createTable "$dst")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-99)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/5
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+99))")" ) 2>>../data/times/"$numTuples"/5
     executeQuery "drop table $dst;"
   done
   #selectQuery $1 $2 "unique1" $3 $(($3+99))
@@ -269,7 +285,7 @@ query6() { # query 6: source, dest, lowerValue
     executeQuery "$(createTable "$dst")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $(($numTuples-999)))
-    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/6
+    ( time executeQuery "$(selectQuery "$src" "$dst" "unique1" "$rand" "$(($rand+999))")" ) 2>>../data/times/"$numTuples"/6
     executeQuery "drop table $dst;"
   done
   #selectQuery $1 $2 "unique1" $3 $(($3+999))
@@ -287,7 +303,7 @@ query7() { # query 7: source1, source2, numTuples
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $numTuples)
     qStr="select * from $src where unique2 = $rand;"
-    ( time executeQuery "$qStr" ) 2>>../data/times/7
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/7
   done
   #trim "$queryStr"
 }
@@ -304,7 +320,7 @@ query8() { # query 8: source1, source2, numTuples
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $numTuples)
     qStr="select * from $src where unique2 between $rand and $(($rand+99));"
-    ( time executeQuery "$qStr" ) 2>>../data/times/8
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/8
   done
   #trim "$queryStr"
 }
@@ -335,7 +351,7 @@ select * from $src1, $src2
 where ($src1.$attr = $src2.$attr) 
 and ( $src2.$attr < 1000);
 "
-    ( time executeQuery "$qStr" ) 2>>../data/times/9
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/9
     executeQuery "drop table $dst;"
   done
 }
@@ -369,7 +385,7 @@ select * from $src, bprime
 where ($src.$attr = bprime.$attr) ;
 "
     trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/10
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/10
     executeQuery "drop table $dst;"
   done
 }
@@ -406,9 +422,9 @@ and ($src1.$attr < 1000);
 #and (tenktup1.unique2 = tenktup2.unique2)
 #and (tenktup1.unique2 < 1000);
 #"
-    trim "$queryStr"
+    trim "$qStr"
 
-    ( time executeQuery "$qStr" ) 2>>../data/times/11
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/11
     executeQuery "drop table $dst;"
   done
 }
@@ -439,9 +455,9 @@ qStr="
 insert into $dst 
 select * from $src1, $src2 
 where ($src1.$attr = $src2.$attr) 
-and ( $src.$attr < 1000);
+and ( $src2.$attr < 1000);
 "
-    ( time executeQuery "$qStr" ) 2>>../data/times/12
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTumples"/12
     executeQuery "drop table $dst;"
   done
 }
@@ -467,7 +483,7 @@ select * from $src, bprime
 where ($src.$attr = bprime.$attr);
 "
     trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/10
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/13
     executeQuery "drop table $dst;"
   done
 }
@@ -503,19 +519,20 @@ and ($src1.$attr < 1000);
 #and (tenktup1.unique2 = tenktup2.unique2)
 #and (tenktup1.unique2 < 1000);
 #"
-    trim "$queryStr"
+    queryStr="$(trim "$queryStr")"
 
-    ( time executeQuery "$qStr" ) 2>>../data/times/14
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/14
     executeQuery "drop table $dst;"
   done
 }
 query15() {
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp15"
 
   for i in {1..4}; do
-    executeQuery "$(createDouble "$dstr")"
+    executeQuery "$(createDouble "$dst")"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
     } || { 
@@ -533,15 +550,16 @@ and ($src1.unique2 < 1000);
 #where (tenktup1.unique1 = tenktup2.unique1)
 #and (tenktup1.unique2 < 1000);
 #"
-    ( time executeQuery "$qStr" ) 2>>../data/times/15
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/15
     executeQuery "drop table $dst;"
-    trim "$queryStr"
   done
 }
 query16() {
   source1="$1"
   source2="$2"
-  dst="temp15"
+  numTuples="$3"
+  dst="temp16"
 
   for i in {1..4}; do
     executeQuery "$(createDouble "$dst")"
@@ -552,8 +570,8 @@ insert into $dst
 select * from $src, bprime
 where ($src.unique1 = bprime.unique1);
 "
-    queryStr"$(trim "$queryStr")"
-    ( time executeQuery "$qStr" ) 2>>../data/times/16
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/16
     executeQuery "drop table $dst;"
   done
 }
@@ -562,6 +580,7 @@ query17() {
   source1="$1"
   source2="$2"
   source3="$3"
+  numTuples="$4"
   dst="temp17"
 
   for i in {1..4}; do
@@ -580,7 +599,7 @@ and ($src1.unique1 = $src2.unique1)
 and ($src1.unique1 < 1000);
 "
     queryStr="$(trim "$queryStr")"
-    ( time executeQuery "$qStr" ) 2>>../data/times/16
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/17
     executeQuery "drop table $dst;"
   done
 }
@@ -588,6 +607,7 @@ and ($src1.unique1 < 1000);
 query18() {
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp18"
   createStr="create table $dst
 (
@@ -606,8 +626,8 @@ insert into $dst
 select distinct two, four, ten, twenty, onePercent, string4
 from $src;
 "
-    trim "$qStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/18
+    qstr="$(trim "$qStr")"
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/18
     executeQuery "drop table $dst;"
   done
 }
@@ -615,6 +635,7 @@ from $src;
 query19() { # query 19
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp19"
 createStr="
 create table $dst
@@ -646,8 +667,8 @@ tenPercent, twentyPercent, fiftyPercent, unique3,
 evenOnePercent, oddOnePercent, stringu1, stringu2, string4
 from $src;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/19
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/19
     executeQuery "drop table $dst;"
   done
 }
@@ -659,6 +680,7 @@ queryStr="create table $1 ( val integer NOT NULL); "
 query20() {
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp19"
   for i in {1..4}; do
     createStr="create table $dst ( val integer NOT NULL); "
@@ -666,10 +688,10 @@ query20() {
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
 insert into $dst
-select min($src.unique2) from $src;
+select min($src.unique1) from $src;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/19
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/20
     executeQuery "drop table $dst;"
   done
 }
@@ -677,6 +699,8 @@ select min($src.unique2) from $src;
 query21() { # query 21 & query 24
   source1="$1"
   source2="$2"
+  numTuples="$3"
+  attr="unique1"
   dst="temp"
   for i in {1..4}; do
     createStr="create table $dst ( val integer NOT NULL); "
@@ -684,11 +708,11 @@ query21() { # query 21 & query 24
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
 insert into $dst
-select min($src.unique3) from $src
+select min($src.$attr) from $src
 group by $src.onePercent;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/21
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/21
     executeQuery "drop table $dst;"
   done
 }
@@ -696,6 +720,7 @@ group by $src.onePercent;
 query22() { # query 22 & query 25
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp"
   for i in {1..4}; do
     createStr="create table $dst ( val integer NOT NULL); "
@@ -706,14 +731,15 @@ insert into $dst
 select sum($src.unique3) from $src
 group by $src.onePercent;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/22
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/22
     executeQuery "drop table $dst;"
   done
 }
 query23() {
   source1="$1"
   source2="$2"
+  numTuples="$3"
   dst="temp19"
   for i in {1..4}; do
     createStr="create table $dst ( val integer NOT NULL); "
@@ -723,14 +749,15 @@ queryStr="
 insert into $dst
 select min($src.unique2) from $src;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/23
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/23
     executeQuery "drop table $dst;"
   done
 }
 query24() { # query 21 & query 2r
   source1="$1"
   source2="$2"
+  numTuples="$3"
   attr="unique2"
   dst="temp"
   for i in {1..4}; do
@@ -742,14 +769,15 @@ insert into $dst
 select min($src.$attr) from $src
 group by $src.onePercent;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/24
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/24
     executeQuery "drop table $dst;"
   done
 }
 query25() { # query 22 & query 25
   source1="$1"
   source2="$2"
+  numTuples="$3"
   attr="unique2"
   dst="temp"
   for i in {1..4}; do
@@ -761,14 +789,15 @@ insert into $dst
 select sum($src.$attr) from $src
 group by $src.onePercent;
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/25
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/25
     executeQuery "drop table $dst;"
   done
 }
 query26() { # query 26 & query 29
   source1="$1"
   source2="$2"
+  numTuples="$3"
 #queryStr="
 #insert into tenktup1 values(10001,74,0, 2,0,10,50,688,
 #1950,4950,9950,1,100,
@@ -786,8 +815,8 @@ insert into $src values(74,10001,0, 2,0,10,50,688,
 'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
 'OxxxxxxxxxxxxxxxxxxxxxxxxxOxxxxxxxxxxxxxxxxxxxxxxxxO');
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/26
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/26
     executeQuery "delete from $src where unique2=10001;"
   done
 }
@@ -795,42 +824,45 @@ insert into $src values(74,10001,0, 2,0,10,50,688,
 query27() { # query 27 & query 30
   source1="$1"
   source2="$2"
+  numTuples="$3"
 #queryStr="
 #delete from tenktup1 where unique1=10001;
 #"
   for i in {1..10}; do
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
  queryStr="
-insert into $src values(74,10001,0, 2,0,10,50,688,
+insert into $src values(74,$(($numTuples+$i)),0, 2,0,10,50,688,
 1950,4950,9950,1,100,
 'MxxxxxxxxxxxxxxxxxxxxxxxxxGxxxxxxxxxxxxxxxxxxxxxxxxC',
 'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
 'OxxxxxxxxxxxxxxxxxxxxxxxxxOxxxxxxxxxxxxxxxxxxxxxxxxO');
 "
-    trim "$queryStr"   
+    queryStr="$(trim "$queryStr")"
     executeQuery "$queryStr"
     queryStr="delete from $src where unique2=10001;"
-    ( time executeQuery "$queryStr" ) 2>>../data/times/27
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/27
   done
 }
 
 query28() { # query 28 & query 31
   source1="$1"
   source2="$2"
+  numTuples="$3"
   for i in {1..10}; do
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
 update $src
 set unique2 = 10001 where unique2 = 1491;
 "
-    trim "$queryStr"
-    ( time executeQuery "$queryStr" ) 2>>../data/times/28
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/28
     executeQuery "delete from $src where unique2=10001;"
   done
 }
 query29() { # query 26 & query 29
   source1="$1"
   source2="$2"
+  numTuples="$3"
 #queryStr="
 #insert into tenktup1 values(10001,74,0, 2,0,10,50,688,
 #1950,4950,9950,1,100,
@@ -848,14 +880,15 @@ insert into $src values(74,10001,0, 2,0,10,50,688,
 'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
 'OxxxxxxxxxxxxxxxxxxxxxxxxxOxxxxxxxxxxxxxxxxxxxxxxxxO');
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/26
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/29
     executeQuery "delete from $src where unique2=10001;"
   done
 }
 query30() { # query 27 & query 30
   source1="$1"
   source2="$2"
+  numTuples="$3"
 #queryStr="
 #delete from tenktup1 where unique1=10001;
 #"
@@ -868,37 +901,39 @@ insert into $src values(74,10001,0, 2,0,10,50,688,
 'GxxxxxxxxxxxxxxxxxxxxxxxxxCxxxxxxxxxxxxxxxxxxxxxxxxA',
 'OxxxxxxxxxxxxxxxxxxxxxxxxxOxxxxxxxxxxxxxxxxxxxxxxxxO');
 "
-    trim "$queryStr"   
+    queryStr="$(trim "$queryStr")"
     executeQuery "$queryStr"
     queryStr="delete from $src where unique2=10001;"
-    ( time executeQuery "$queryStr" ) 2>>../data/times/27
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/30
   done
 }
 query31() { # query 28 & query 31
   source1="$1"
   source2="$2"
+  numTuples="$3"
   for i in {1..10}; do
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
 update $src
 set unique2 = 10001 where unique2 = 1491;
 "
-    trim "$queryStr"
-    ( time executeQuery "$queryStr" ) 2>>../data/times/28
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/31
     executeQuery "delete from $src where unique2=10001;"
   done
 }
 query32() { # query 32
   source1="$1"
   source2="$2"
+  numTuples="$3"
   for i in {1..10}; do
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
 update tenktup1
 set unique1 = 10001 where unique1 = 1491;
 "
-    trim "$queryStr"
-    ( time executeQuery "$queryStr" ) 2>>../data/times/28
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/32
     executeQuery "delete from $src where unique2=10001;"
   done
 }
@@ -909,189 +944,245 @@ longq() {
   executeQuery "drop table temp2;"
 }
 
+doBench() {
+  numTuples="$1"
+  mkdir "../data/times/$numTuples"
+  case $numTuples in
+  10000)
+    tableName="tenktup"
+    ;;
+  100000)
+    tableName="hundredktup"
+    ;;
+  1000000)
+    tableName="onemtup"
+    ;;
+  10000000)
+    tableName="tenmtup"
+    ;;
+  100000000)
+    tableName="hundredmtup"
+    ;;
+  *)
+    echo "invalid number of tuples"
+    ;;
+  esac
+
+  executeQuery "$(createTable "${tableName}1")"
+  executeQuery "$(createTable "${tableName}2")"
+  executeQuery "$(createTable "onektup")"
+  executeQuery "$(loadTableMysql "onektup" "../data/onektuples.csv")"
+  executeQuery "$(loadTableMysql "${tableName}1" "../data/${tableName}les.csv")"
+  executeQuery "$(loadTableMysql "${tableName}2" "../data/${tableName}les.csv")"
+
+  time for i in {1..32}; do 
+    ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
+  done
+
+  clean
+}
+
 case "$1" in
   1)
-    echo "Begin query1"
-    query1 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query1 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   2)
-    echo "Begin query1"
-    query2 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query2 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   3)
-    echo "Begin query1"
-    query3 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query3 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   4)
-    echo "Begin query1"
-    query4 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query4 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   5) 
-    echo "Begin query1"
-    query5 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query5 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   6)
-    echo "Begin query1"
-    query6 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query6 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   7)
-    echo "Begin query1"
-    query7 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query7 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   8)
-    echo "Begin query1"
-    query8 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query8 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   9)
-    echo "Begin query1"
-    query9 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query9 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   bprime)
     bprime
     ;;
   10)
-    echo "Begin query1"
-    query10 tenktup1 tenktup2 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query10 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   11)
-    echo "Begin query1"
-    query11 tenktup1 tenktup2 onektup 10000
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query11 tenktup1 tenktup2 onektup "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
+    ;;
+  12)
+    echo "Begin query$1" | tee >(cat >&2)
+    query12 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
+    ;;
+  13)
+    echo "Begin query12" | tee >(cat >&2)
+    query13 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
+    ;;
+  14)
+    echo "Begin query14" | tee >(cat >&2)
+    query14 tenktup1 tenktup2 onektup "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   15)
-    echo "Begin query1"
-    query15 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query15" | tee >(cat >&2)
+    query15 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   16)
-    echo "Begin query1"
-    query16 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query16" | tee >(cat >&2)
+    query16 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   17)
-    echo "Begin query1"
-    query17 tenktup1 tenktup2 onektup
-    echo "end query1"
-    echo ""
+    echo "Begin query17" | tee >(cat >&2)
+    query17 tenktup17 tenktup2 onektup "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   18)
-    echo "Begin query1"
-    query18 tenktup1
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query18 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   19)
-    echo "Begin query1"
-    query19 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query19 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   19temp)
     query19maketemp "$2"
     ;;
   20)
-    echo "Begin query1"
-    query20 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query20 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   20temp)
     createTableSingleInt "$2"
     ;;
   21)
-    echo "Begin query1"
-    query21 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query21 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   22)
-    echo "Begin query1"
-    query22 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query22 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   23)
-    echo "Begin query1"
-    query23 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query23 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   24)
-    echo "Begin query1"
-    query24 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query24 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   25)
-    echo "Begin query1"
-    query25 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query25 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   26)
-    echo "Begin query1"
-    query26 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query26 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   27)
-    echo "Begin query1"
-    query27 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query27 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   28)
-    echo "Begin query1"
-    query28 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query28 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   29)
-    echo "Begin query1"
-    query29 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query29 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   30)
-    echo "Begin query1"
-    query30 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query30 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   31)
-    echo "Begin query1"
-    query31 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query31 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   32)
-    echo "Begin query1"
-    query32 tenktup1 tenktup2
-    echo "end query1"
-    echo ""
+    echo "Begin query$1" | tee >(cat >&2)
+    query32 tenktup1 tenktup2 "$2"
+    echo "end query$1" | tee >(cat >&2)
+    echo "" | tee >(cat >&2)
     ;;
   clean)
     clean
@@ -1110,6 +1201,12 @@ case "$1" in
     ;;
   longq)
     longq
+    ;;
+  generateData)
+    generateData
+    ;;
+  doBench)
+    doBench "$2"
     ;;
   *)
     echo "No such query"
