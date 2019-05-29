@@ -10,8 +10,6 @@ generateData() {
   go run Wisconsin.go 100000000 > ../data/hundredmtuples.csv 
 }
 
-
-
 executeQuery() { # queryStr
   echo "executing: $1"
   echo "$1" | ./mysql_connect.sh
@@ -165,6 +163,8 @@ tenktup1
 tenktup2
 bprime
 onektup
+hundredktup1
+hundredktup2
 EOF
 }
 
@@ -182,18 +182,22 @@ where $3 between $4 and $5;
 randomInclusive() {
   low="$1"
   high="$2"
+  r=$(shuf -i$1-$2 -n1)
 
-  range=32768 # range of numbers given by $RANDOM
-  r=-1
-
-  while (( $r < $low || $r > $high )); do 
-    r=0
-    iterRange=$(($high - $low + 1))
-    while (($iterRange > 0)); do
-      r=$(($range*$r+$RANDOM))
-      iterRange=$(($iterRange - $range))
-    done
-  done
+#  range=32768 # range of numbers given by $RANDOM
+#  r=-1
+#
+#  while (( $r < $low || $r > $high )); do 
+#    r=0
+#    iterRange=$(($high - $low + 1))
+#    echo "iterRange is $iterRange" >>randout
+#    while (($iterRange > 0)); do
+#      r=$(($range*$r+$RANDOM))
+#      echo "iter r is $r" >>randout
+#      iterRange=$(($iterRange - $range))
+#      echo "iterRange is $iterRange" >>randout
+#    done
+#  done
   echo "$r"
 }
 
@@ -351,6 +355,7 @@ select * from $src1, $src2
 where ($src1.$attr = $src2.$attr) 
 and ( $src2.$attr < 1000);
 "
+    qStr="$(trim "$qStr")"
     ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/9
     executeQuery "drop table $dst;"
   done
@@ -358,8 +363,8 @@ and ( $src2.$attr < 1000);
 bprime() { 
 queryStr="
 insert into bprime
-select * from tenktup2
-where tenktup2.unique2 < 1000;
+select * from $1
+where $1.unique2 < 1000;
 "
   trim "$queryStr"
 }
@@ -384,7 +389,7 @@ insert into $dst
 select * from $src, bprime 
 where ($src.$attr = bprime.$attr) ;
 "
-    trim "$queryStr"
+    qStr="$(trim "$qStr")"
     ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/10
     executeQuery "drop table $dst;"
   done
@@ -422,7 +427,7 @@ and ($src1.$attr < 1000);
 #and (tenktup1.unique2 = tenktup2.unique2)
 #and (tenktup1.unique2 < 1000);
 #"
-    trim "$qStr"
+    qStr="$(trim "$qStr")"
 
     ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/11
     executeQuery "drop table $dst;"
@@ -457,7 +462,8 @@ select * from $src1, $src2
 where ($src1.$attr = $src2.$attr) 
 and ( $src2.$attr < 1000);
 "
-    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTumples"/12
+    qStr="$(trim "$queryStr")"
+    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/12
     executeQuery "drop table $dst;"
   done
 }
@@ -477,13 +483,13 @@ query13() {
     executeQuery "$(createDouble "$dst")"
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     rand=$(randomInclusive 1 $numTuples)
-qStr="
+queryStr="
 insert into $dst
 select * from $src, bprime 
 where ($src.$attr = bprime.$attr);
 "
-    trim "$queryStr"
-    ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/13
+    queryStr="$(trim "$queryStr")"
+    ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/13
     executeQuery "drop table $dst;"
   done
 }
@@ -505,7 +511,7 @@ query14() {
     }
     rand=$(randomInclusive 1 $numTuples)
     #qStr="insert into $dst select * from $src, bprime where ($src.unique2 = bprime.unique2) and ( $src.unique2 < 1000);"
-qStr="
+queryStr="
 insert into $dst
 select * from $source3, $src1, $src2
 where ($source3.$attr = $src1.$attr)
@@ -944,9 +950,8 @@ longq() {
   executeQuery "drop table temp2;"
 }
 
-doBench() {
+ftableName() {
   numTuples="$1"
-  mkdir "../data/times/$numTuples"
   case $numTuples in
   10000)
     tableName="tenktup"
@@ -964,15 +969,27 @@ doBench() {
     tableName="hundredmtup"
     ;;
   *)
-    echo "invalid number of tuples"
+    echo "invalid number of tuples" >&2
     ;;
   esac
+  echo "$tableName"
+}
 
+doBench() {
+  numTuples="$1"
+  mkdir "../data/times/$numTuples"
+  tableName="$(ftableName $1)"
+  echo "creating $tableName 1" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(createTable "${tableName}1")"
+  echo "creating $tableName 2" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(createTable "${tableName}2")"
+  echo "creating onektup" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(createTable "onektup")"
+  echo "loading onektup" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(loadTableMysql "onektup" "../data/onektuples.csv")"
+  echo "loading $tableName 1" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(loadTableMysql "${tableName}1" "../data/${tableName}les.csv")"
+  echo "loading $tableName 2" > >(tee -a stdout) 2> >(tee -a stderr)
   executeQuery "$(loadTableMysql "${tableName}2" "../data/${tableName}les.csv")"
 
   time for i in {1..32}; do 
@@ -982,207 +999,208 @@ doBench() {
   clean
 }
 
+tbl="$(ftableName $2)"
 case "$1" in
   1)
-    echo "Begin query$1" | tee >(cat >&2)
-    query1 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1 with $2"
+    query1 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   2)
-    echo "Begin query$1" | tee >(cat >&2)
-    query2 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query2 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   3)
-    echo "Begin query$1" | tee >(cat >&2)
-    query3 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query3 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   4)
-    echo "Begin query$1" | tee >(cat >&2)
-    query4 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query4 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   5) 
-    echo "Begin query$1" | tee >(cat >&2)
-    query5 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query5 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   6)
-    echo "Begin query$1" | tee >(cat >&2)
-    query6 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query6 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   7)
-    echo "Begin query$1" | tee >(cat >&2)
-    query7 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query7 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   8)
-    echo "Begin query$1" | tee >(cat >&2)
-    query8 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query8 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   9)
-    echo "Begin query$1" | tee >(cat >&2)
-    query9 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query9 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   bprime)
-    bprime
+    bprime "${tbl}2"
     ;;
   10)
-    echo "Begin query$1" | tee >(cat >&2)
-    query10 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query10 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   11)
-    echo "Begin query$1" | tee >(cat >&2)
-    query11 tenktup1 tenktup2 onektup "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query11 ${tbl}1 ${tbl}2 onektup "$2"
+    echo "end query$1"
+    echo ""
     ;;
   12)
-    echo "Begin query$1" | tee >(cat >&2)
-    query12 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query12 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   13)
-    echo "Begin query12" | tee >(cat >&2)
-    query13 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query12"
+    query13 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   14)
-    echo "Begin query14" | tee >(cat >&2)
-    query14 tenktup1 tenktup2 onektup "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query14"
+    query14 ${tbl}1 ${tbl}2 onektup "$2"
+    echo "end query$1"
+    echo ""
     ;;
   15)
-    echo "Begin query15" | tee >(cat >&2)
-    query15 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query15"
+    query15 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   16)
-    echo "Begin query16" | tee >(cat >&2)
-    query16 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query16"
+    query16 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   17)
-    echo "Begin query17" | tee >(cat >&2)
-    query17 tenktup17 tenktup2 onektup "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query17"
+    query17 ${tbl}17 ${tbl}2 onektup "$2"
+    echo "end query$1"
+    echo ""
     ;;
   18)
-    echo "Begin query$1" | tee >(cat >&2)
-    query18 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query18 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   19)
-    echo "Begin query$1" | tee >(cat >&2)
-    query19 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query19 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   19temp)
     query19maketemp "$2"
     ;;
   20)
-    echo "Begin query$1" | tee >(cat >&2)
-    query20 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query20 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   20temp)
     createTableSingleInt "$2"
     ;;
   21)
-    echo "Begin query$1" | tee >(cat >&2)
-    query21 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query21 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   22)
-    echo "Begin query$1" | tee >(cat >&2)
-    query22 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query22 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   23)
-    echo "Begin query$1" | tee >(cat >&2)
-    query23 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query23 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   24)
-    echo "Begin query$1" | tee >(cat >&2)
-    query24 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query24 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   25)
-    echo "Begin query$1" | tee >(cat >&2)
-    query25 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query25 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   26)
-    echo "Begin query$1" | tee >(cat >&2)
-    query26 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query26 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   27)
-    echo "Begin query$1" | tee >(cat >&2)
-    query27 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query27 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   28)
-    echo "Begin query$1" | tee >(cat >&2)
-    query28 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query28 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   29)
-    echo "Begin query$1" | tee >(cat >&2)
-    query29 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query29 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   30)
-    echo "Begin query$1" | tee >(cat >&2)
-    query30 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query30 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   31)
-    echo "Begin query$1" | tee >(cat >&2)
-    query31 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query31 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   32)
-    echo "Begin query$1" | tee >(cat >&2)
-    query32 tenktup1 tenktup2 "$2"
-    echo "end query$1" | tee >(cat >&2)
-    echo "" | tee >(cat >&2)
+    echo "Begin query$1"
+    query32 ${tbl}1 ${tbl}2 "$2"
+    echo "end query$1"
+    echo ""
     ;;
   clean)
     clean
