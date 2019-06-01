@@ -10,6 +10,22 @@ generateData() {
   go run Wisconsin.go 100000000 > ../data/hundredmtuples.csv 
 }
 
+loadBench() { # numTuples
+  tableName="$(ftableName $1)"
+  echo "creating $tableName 1" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(createTable "${tableName}1")"
+  echo "creating $tableName 2" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(createTable "${tableName}2")"
+  echo "creating onektup" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(createTable "onektup")"
+  echo "loading onektup" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(loadTableMysql "onektup" "../data/onektuples.csv")"
+  echo "loading $tableName 1" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(loadTableMysql "${tableName}1" "../data/${tableName}les.csv")"
+  echo "loading $tableName 2" > >(tee -a stdout) 2> >(tee -a stderr)
+  executeQuery "$(loadTableMysql "${tableName}2" "../data/${tableName}les.csv")"
+}
+
 executeQuery() { # queryStr
   echo "executing: $1"
   echo "$1" | ./mysql_connect.sh
@@ -328,7 +344,7 @@ query8() { # query 8: source1, source2, numTuples
   done
   #trim "$queryStr"
 }
-query9() { # query 9: dest
+query9() { # query 9: tbl1 tbl2 numTuples
   source1="$1"
   source2="$2"
   numTuples="$3"
@@ -342,7 +358,7 @@ query9() { # query 9: dest
 #"
 #  trim "$queryStr"
   for i in {1..4}; do
-    executeQuery "$(createDouble "$dst")"
+    executeQuery "$(createDouble "${dst}_$i")"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
     } || { 
@@ -350,14 +366,14 @@ query9() { # query 9: dest
     }
     rand=$(randomInclusive 1 $numTuples)
 qStr="
-insert into $dst 
+insert into ${dst}_$i
 select * from $src1, $src2 
 where ($src1.$attr = $src2.$attr) 
 and ( $src2.$attr < 1000);
 "
     qStr="$(trim "$qStr")"
     ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/9
-    executeQuery "drop table $dst;"
+    #executeQuery "drop table $dst;"
   done
 }
 bprime() { 
@@ -993,7 +1009,9 @@ doBench() {
   executeQuery "$(loadTableMysql "${tableName}2" "../data/${tableName}les.csv")"
 
   time for i in {1..32}; do 
-    ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
+    if [ $i != 9 ]; then
+      ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
+    fi
   done
 
   clean
@@ -1225,6 +1243,9 @@ case "$1" in
     ;;
   doBench)
     doBench "$2"
+    ;;
+  loadBench)
+    loadBench "$2"
     ;;
   *)
     echo "No such query"
