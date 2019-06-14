@@ -358,7 +358,7 @@ query9() { # query 9: tbl1 tbl2 numTuples
 #"
 #  trim "$queryStr"
   for i in {1..4}; do
-    executeQuery "$(createDouble "${dst}_$i")"
+    executeQuery "$(createDouble "${dst}")"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
     } || { 
@@ -366,7 +366,7 @@ query9() { # query 9: tbl1 tbl2 numTuples
     }
     rand=$(randomInclusive 1 $numTuples)
 qStr="
-insert into ${dst}_$i
+insert into ${dst}
 select * from $src1, $src2 
 where ($src1.$attr = $src2.$attr) 
 and ( $src2.$attr < 1000);
@@ -376,13 +376,15 @@ and ( $src2.$attr < 1000);
     executeQuery "drop table $dst;"
   done
 }
-bprime() { 
+bprime() { # tbl numTuples
+  numTuples=$2
 queryStr="
 insert into bprime
 select * from $1
 where $1.unique2 < 1000;
 "
   trim "$queryStr"
+  echo "bprime: $queryStr $numTuples"
   ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/bprime
 }
 query10() { 
@@ -420,7 +422,8 @@ query11() {
   attr="unique1"
   
   for i in {1..4}; do
-    executeQuery "$(createDouble "$dst")"
+    #executeQuery "$(createDouble "$dst")"
+    executeQuery "$(createTriple "$dst")"
     #[[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
@@ -519,7 +522,8 @@ query14() {
   attr="unique2"
   
   for i in {1..4}; do
-    executeQuery "$(createDouble "$dst")"
+    #executeQuery "$(createDouble "$dst")"
+    executeQuery "$(createTriple "$dst")"
     # [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
@@ -607,7 +611,8 @@ query17() {
   dst="temp17"
 
   for i in {1..4}; do
-    executeQuery "$(createDouble "$dst")"
+    #executeQuery "$(createDouble "$dst")"
+    executeQuery "$(createTriple "$dst")"
     [[ $(($i%2)) = 0 ]] && { 
       src1="$source1" && src2="$source2"; 
     } || { 
@@ -952,7 +957,7 @@ query32() { # query 32
   for i in {1..10}; do
     [[ $(($i%2)) = 0 ]] && src="$source1" || src="$source2"
 queryStr="
-update tenktup1
+update $src
 set unique1 = 10001 where unique1 = 1491;
 "
     queryStr="$(trim "$queryStr")"
@@ -1011,12 +1016,10 @@ doBench() {
 
   time for i in {1..32}; do 
     if [ $i == 10 ]; then
-      echo "MAKING BPRIME" > >(tee -a stdout) 2> >(tee -a stderr >&2);
+      executeQuery "$(createTable "bprime")"
       ./wisconsin.sh bprime "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2);
     fi
-    if [ $i != 9 ]; then
-      ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
-    fi
+    ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
   done
 
   clean
@@ -1079,8 +1082,8 @@ case "$1" in
     echo ""
     ;;
   bprime)
-    echo "begin bprime"
-    bprime "${tbl}2"
+    echo "begin bprime with $2"
+    bprime "${tbl}2" "$2"
     echo "end bprime"
     ;;
   10)
@@ -1127,7 +1130,7 @@ case "$1" in
     ;;
   17)
     echo "Begin query17"
-    query17 ${tbl}17 ${tbl}2 onektup "$2"
+    query17 ${tbl}1 ${tbl}2 onektup "$2"
     echo "end query$1"
     echo ""
     ;;
@@ -1223,6 +1226,7 @@ case "$1" in
     ;;
   32)
     echo "Begin query$1"
+    echo "tbl is ${tbl}, 2 is $2"
     query32 ${tbl}1 ${tbl}2 "$2"
     echo "end query$1"
     echo ""
