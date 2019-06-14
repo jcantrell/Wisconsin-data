@@ -383,7 +383,7 @@ select * from $1
 where $1.unique2 < 1000;
 "
   trim "$queryStr"
-  ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/bprime
+  ( time executeQuery "$queryStr" ) 2>>../data/times/"$numTuples"/bprime
 }
 query10() { 
   source1="$1"
@@ -1013,7 +1013,6 @@ doBench() {
     if [ $i == 10 ]; then
       echo "MAKING BPRIME" > >(tee -a stdout) 2> >(tee -a stderr >&2);
       ./wisconsin.sh bprime "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2);
-      echo "DONE MAKING BPRIME" > >(tee -a stdout) 2> >(tee -a stderr >&2);
     fi
     if [ $i != 9 ]; then
       ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
