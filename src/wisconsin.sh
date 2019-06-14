@@ -373,7 +373,7 @@ and ( $src2.$attr < 1000);
 "
     qStr="$(trim "$qStr")"
     ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/9
-    #executeQuery "drop table $dst;"
+    executeQuery "drop table $dst;"
   done
 }
 bprime() { 
@@ -383,6 +383,7 @@ select * from $1
 where $1.unique2 < 1000;
 "
   trim "$queryStr"
+  ( time executeQuery "$qStr" ) 2>>../data/times/"$numTuples"/bprime
 }
 query10() { 
   source1="$1"
@@ -1009,6 +1010,11 @@ doBench() {
   executeQuery "$(loadTableMysql "${tableName}2" "../data/${tableName}les.csv")"
 
   time for i in {1..32}; do 
+    if [ $i == 10 ]; then
+      echo "MAKING BPRIME" > >(tee -a stdout) 2> >(tee -a stderr >&2);
+      ./wisconsin.sh bprime "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2);
+      echo "DONE MAKING BPRIME" > >(tee -a stdout) 2> >(tee -a stderr >&2);
+    fi
     if [ $i != 9 ]; then
       ./wisconsin.sh "$i" "$numTuples" > >(tee -a stdout) 2> >(tee -a stderr >&2); 
     fi
@@ -1074,7 +1080,9 @@ case "$1" in
     echo ""
     ;;
   bprime)
+    echo "begin bprime"
     bprime "${tbl}2"
+    echo "end bprime"
     ;;
   10)
     echo "Begin query$1"
